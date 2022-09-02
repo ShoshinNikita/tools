@@ -1,0 +1,19 @@
+package local
+
+import "flag"
+
+type X struct {
+	A int
+	B string
+}
+
+func _() {
+	_ = X{A: 1, B: "hello"} // want "unkeyed fields"
+}
+
+var badStructLiteral = flag.Flag{ // want "unkeyed fields"
+	Name:     "Name",
+	Usage:    "Usage",
+	Value:    nil, // Value
+	DefValue: "DefValue",
+}

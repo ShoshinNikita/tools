@@ -14,9 +14,15 @@ import (
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
+
 	pkgs := []string{"a"}
 	if typeparams.Enabled {
 		pkgs = append(pkgs, "typeparams")
 	}
 	analysistest.RunWithSuggestedFixes(t, testdata, composite.Analyzer, pkgs...)
+
+	t.Run("local", func(t *testing.T) {
+		composite.Analyzer.Flags.Set("local", "true")
+		analysistest.RunWithSuggestedFixes(t, testdata, composite.Analyzer, "local")
+	})
 }

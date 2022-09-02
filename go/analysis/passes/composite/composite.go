@@ -42,10 +42,14 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 }
 
-var whitelist = true
+var (
+	whitelist  = true
+	checkLocal = false
+)
 
 func init() {
 	Analyzer.Flags.BoolVar(&whitelist, "whitelist", whitelist, "use composite white list; for testing only")
+	Analyzer.Flags.BoolVar(&checkLocal, "local", checkLocal, "whether to check locally defined structs")
 }
 
 // runUnkeyedLiteral checks if a composite literal is a struct literal with
@@ -89,7 +93,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				// skip non-struct composite literals
 				continue
 			}
-			if isLocalType(pass, typ) {
+			if isLocalType(pass, typ) && !checkLocal {
 				// allow unkeyed locally defined composite literal
 				continue
 			}

@@ -11,6 +11,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"log"
 	"strings"
 
 	"golang.org/x/tools/internal/event"
@@ -141,6 +142,9 @@ func parameterNames(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 	if !ok {
 		return nil
 	}
+	if len(callExpr.Args) <= 1 {
+		return nil
+	}
 
 	var hints []protocol.InlayHint
 	for i, v := range callExpr.Args {
@@ -161,7 +165,15 @@ func parameterNames(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 		}
 		// Skip the parameter name hint if the arg matches the
 		// the parameter name.
-		if i, ok := v.(*ast.Ident); ok && i.Name == param.Name() {
+		var argName string
+		switch v := v.(type) {
+		case *ast.Ident:
+			argName = v.Name
+		case *ast.SelectorExpr:
+			argName = v.Sel.Name
+			log.Println(v.Sel)
+		}
+		if argName != "" && strings.Contains(strings.ToLower(argName), strings.ToLower(param.Name())) {
 			continue
 		}
 
