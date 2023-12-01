@@ -87,7 +87,7 @@ func IncomingCalls(ctx context.Context, snapshot *cache.Snapshot, fh file.Handle
 		}
 		loc := protocol.Location{
 			URI:   callItem.URI,
-			Range: callItem.Range,
+			Range: callItem.SelectionRange,
 		}
 		call, ok := incomingCalls[loc]
 		if !ok {
@@ -126,40 +126,60 @@ func enclosingNodeCallItem(ctx context.Context, snapshot *cache.Snapshot, pkgPat
 	}
 
 	// Find the enclosing function, if any, and the number of func literals in between.
-	var funcDecl *ast.FuncDecl
 	var funcLit *ast.FuncLit // innermost function literal
 	var litCount int
 	path, _ := astutil.PathEnclosingInterval(pgf.File, start, end)
+
+	nameIdent := path[len(path)-1].(*ast.File).Name
+	kind := protocol.Package
+
 outer:
 	for _, node := range path {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
-			funcDecl = n
+			nameIdent = n.Name
+			kind = protocol.Function
 			break outer
+
 		case *ast.FuncLit:
 			litCount++
 			if litCount > 1 {
 				continue
 			}
 			funcLit = n
+
+		case *ast.ValueSpec:
+			// *ast.FuncLit precedes *ast.ValueSpec. So, try to find it
+			// among the variable declarations. If possible, we shouldn't use
+			// *ast.FuncLit because its position corresponds to 'func' - therefore
+			// it would be an end of this chain of call hierarchy.
+			for i, v := range n.Values {
+				if v == funcLit {
+					nameIdent = n.Names[i]
+					kind = protocol.Variable
+					break outer
+				}
+			}
 		}
 	}
-
-	nameIdent := path[len(path)-1].(*ast.File).Name
-	kind := protocol.Package
-	if funcDecl != nil {
-		nameIdent = funcDecl.Name
-		kind = protocol.Function
-	}
-
-	nameStart, nameEnd := nameIdent.Pos(), nameIdent.End()
-	if funcLit != nil {
-		nameStart, nameEnd = funcLit.Type.Func, funcLit.Type.Params.Pos()
-		kind = protocol.Function
-	}
-	rng, err := pgf.PosRange(nameStart, nameEnd)
+	// Find the range for the future calls. TODO
+	rng, err := pgf.PosRange(nameIdent.Pos(), nameIdent.End())
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
+	}
+
+	// Find the range for the selection. Most of the the time, it matches range of the symbol.
+	selectionRng := rng
+	if funcLit != nil {
+		// Set the selection range to the function call. Don't change the range of the symbol,
+		// so it will be used for the future 'call hierarchy' calls.
+		nameStart, nameEnd := funcLit.Type.Func, funcLit.Type.Params.Pos()
+		selectionRng, err = pgf.PosRange(nameStart, nameEnd)
+		if err != nil {
+			return protocol.CallHierarchyItem{}, err
+		}
+
+		kind = protocol.Function
 	}
 
 	name := nameIdent.Name
@@ -174,7 +194,7 @@ outer:
 		Detail:         fmt.Sprintf("%s • %s", pkgPath, filepath.Base(fh.URI().Path())),
 		URI:            loc.URI,
 		Range:          rng,
-		SelectionRange: rng,
+		SelectionRange: selectionRng,
 	}, nil
 }
 

@@ -45,12 +45,12 @@ func C() { //@loc(hierarchyC, "C")
 }
 
 // To test hierarchy across function literals
-var x = func() { //@loc(hierarchyLiteral, "func"),loc(hierarchyLiteralOut, "x")
+var x = func() { //@loc(hierarchyLiteral, "x"),incomingcalls(hierarchyLiteral, hierarchyD)
 	D()
 }
 
 // D is exported to test incoming/outgoing calls across packages
-func D() { //@loc(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, hierarchyLiteralOut, outgoingB, hierarchyFoo, hierarchyH, hierarchyI, hierarchyJ, hierarchyK)
+func D() { //@loc(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, hierarchyLiteral, outgoingB, hierarchyFoo, hierarchyH, hierarchyI, hierarchyJ, hierarchyK)
 	e()
 	x()
 	F()
